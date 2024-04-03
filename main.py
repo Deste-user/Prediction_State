@@ -39,15 +39,13 @@ def calculate_matrix(t_in,t_fin):
     B = [[0.5*t_camp**2,0],[0,0.5*t_camp**2],[t_camp,0],[0,t_camp]]
     return A,B
 
-def plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label):
+def plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label,time_array):
     pos_array=np.array(pos_array)
     vel_array=np.array(vel_array)
     realistic_pos_array=np.array(realistic_pos_array)
     realistic_vel_array=np.array(realistic_vel_array)
-    iter = []
-    for i in range(0,len(vel_array)):
-        iter.append(i)
 
+    #Plot Predicted position and Realistic position
     fig1= plt.subplot()
     fig1.plot(pos_array[:,0],pos_array[:,1],label='Predicted position')
     fig1.plot(realistic_pos_array[:,0],realistic_pos_array[:,1],label='Realistic position')
@@ -55,15 +53,43 @@ def plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label)
     fig1.legend()
     plt.show()
 
+    #Plot Predicted velocity and Realistic velocity
     fig2= plt.subplot()
     module_predicted_vel = module(vel_array)
     module_realistic_vel = module(realistic_vel_array)
-    fig2.plot(iter,module_predicted_vel,label='Predicted velocity')
-    fig2.plot(iter,module_realistic_vel,label='Realistic velocity')
+    fig2.plot(time_array,module_predicted_vel,label='Predicted velocity')
+    fig2.plot(time_array,module_realistic_vel,label='Realistic velocity')
     fig2.legend()
     plt.show()
 
-    #to-do: make the plot of error in velocity
+    #Plot position x, position y in time
+    #Chiedere al professore poichè se stampo tutti insieme non si vede nulla
+    fig3= plt.subplot()
+    fig3.plot(time_array,pos_array[:,0],label='Position x')
+    fig3.plot(time_array,pos_array[:,1],label='Position y')
+    fig3.legend()
+    plt.show()
+
+    #Plot velocity x, velocity y in time
+    fig4= plt.subplot()
+    fig4.plot(time_array,vel_array[:,0],label='Velocity x')
+    fig4.plot(time_array,vel_array[:,1],label='Velocity y')
+    fig4.legend()
+    plt.show()
+
+    #Plot error in position and velocity
+
+    errpos = []
+    errvel = []
+    for i in range(0,len(pos_array)):
+        errpos.append(np.sqrt((pos_array[i][0] - realistic_pos_array[i][0]) ** 2 + (pos_array[i][1] - realistic_pos_array[i][1]) ** 2))
+        errvel.append(np.sqrt((vel_array[i][0] - realistic_vel_array[i][0]) ** 2 + (vel_array[i][1] - realistic_vel_array[i][1]) ** 2))
+
+    fig5= plt.subplot()
+    fig5.plot(time_array, errpos, label='Error in position')
+    fig5.plot(time_array, errvel, label='Error in velocity')
+    fig5.legend()
+    plt.show()
     return
 
 def noisy_generator():
@@ -96,6 +122,7 @@ def main():
     vel_array = []
     realistic_pos_array = []
     realistic_vel_array = []
+    time_array = []
     #pos_array.append([state.posX,state.posY])
     #vel_array.append([state.velX,state.velY])
     label=csv_data[0]['label']
@@ -109,6 +136,7 @@ def main():
 
             realistic_pos_array.append([float(csv_data[i]['x']),float(csv_data[i]['y'])])
             realistic_vel_array.append([float(csv_data[i]['vx']),float(csv_data[i]['vy'])])
+            time_array.append(float(csv_data[i]['time']))
 
             #Prediction step:
             #we dirty the position with gaussian noise
@@ -118,12 +146,12 @@ def main():
             #Correction step:
             #Calculate the Kalman gain
             K = np.dot(np.dot(Pk_kminus1,np.transpose(C)),np.linalg.inv(np.dot(np.dot(C,Pk_kminus1),np.transpose(C))+R))
-            print("label:",label)
-            print("K:",K)
-            print("array:",np.array([float(csv_data[i]['x']),float(csv_data[i]['y'])]))
-            print("array2:",np.dot(C,xk_kminus1))
-            print("differenza:",np.array([float(csv_data[i]['x']),float(csv_data[i]['y'])])-np.dot(C,xk_kminus1))
-            print("Prodotto:", np.dot(K,(np.array([float(csv_data[i]['x']),float(csv_data[i]['y'])])-np.dot(C,xk_kminus1))))
+            #print("label:",label)
+            #print("K:",K)
+            #print("array:",np.array([float(csv_data[i]['x']),float(csv_data[i]['y'])]))
+            #print("array2:",np.dot(C,xk_kminus1))
+            #print("differenza:",np.array([float(csv_data[i]['x']),float(csv_data[i]['y'])])-np.dot(C,xk_kminus1))
+            #print("Prodotto:", np.dot(K,(np.array([float(csv_data[i]['x']),float(csv_data[i]['y'])])-np.dot(C,xk_kminus1))))
             z = np.array([float(csv_data[i]['x']),float(csv_data[i]['y'])]) + noisy_generator()
             #Calculate the new state
             xk_k = xk_kminus1 + np.dot(K,(z - np.dot(C,xk_kminus1)))
@@ -138,11 +166,12 @@ def main():
             vel_array.append([state.velX,state.velY])
         else:
            #Plot data of previous label and reset all variabiles
-           plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label)
+           plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label,time_array)
            label=csv_data[i]['label']
            state = State(float((csv_data[i]['x'])), float(csv_data[i]['y']))
            pos_array=[]
            vel_array=[]
+           time_array=[]
            realistic_pos_array=[]
            realistic_vel_array=[]
            Pkminus1_kminus1=P0
