@@ -46,6 +46,7 @@ def plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label,
     realistic_vel_array=np.array(realistic_vel_array)
 
     #Plot Predicted position and Realistic position
+    # Draw Trajectory
     fig1= plt.subplot()
     fig1.plot(pos_array[:,0],pos_array[:,1],label='Predicted position')
     fig1.plot(realistic_pos_array[:,0],realistic_pos_array[:,1],label='Realistic position')
@@ -59,23 +60,39 @@ def plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label,
     module_realistic_vel = module(realistic_vel_array)
     fig2.plot(time_array,module_predicted_vel,label='Predicted velocity')
     fig2.plot(time_array,module_realistic_vel,label='Realistic velocity')
+    fig2.set_title(label)
     fig2.legend()
     plt.show()
 
-    #Plot position x, position y in time
-    #Chiedere al professore poichè se stampo tutti insieme non si vede nulla
+    #Plot position x and his realistic position in time
     fig3= plt.subplot()
     fig3.plot(time_array,pos_array[:,0],label='Position x')
+    fig3.plot(time_array,realistic_pos_array[:,0],label='Real Position x')
+    fig3.set_title(label)
+
+
+    #Plot position y and his realistic position in time
+
     fig3.plot(time_array,pos_array[:,1],label='Position y')
+    fig3.plot(time_array,realistic_pos_array[:,1],label='Real Position y')
     fig3.legend()
     plt.show()
 
-    #Plot velocity x, velocity y in time
-    fig4= plt.subplot()
-    fig4.plot(time_array,vel_array[:,0],label='Velocity x')
-    fig4.plot(time_array,vel_array[:,1],label='Velocity y')
-    fig4.legend()
+    #Plot velocity x and his realistic velocity in time
+    fig6= plt.subplot()
+    fig6.plot(time_array,vel_array[:,0],label='Velocity x')
+    fig6.plot(time_array,realistic_vel_array[:,0],label='Real Velocity x')
+    fig6.set_title(label)
+
+    #Plot velocity y and his realistic velocity in time
+
+    fig6.plot(time_array,vel_array[:,1],label='Velocity y')
+    fig6.plot(time_array,realistic_vel_array[:,1],label='Real Velocity y')
+    fig6.legend()
     plt.show()
+
+    #L'ho stampato nello stesso grafico sia pos x che pos y ( stessa cosa per vel x e vel y) poichè altrimenti il
+    #server non riesce a gestire tutte le richieste di plot in contemporanea
 
     #Plot error in position and velocity
 
@@ -88,6 +105,7 @@ def plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label,
     fig5= plt.subplot()
     fig5.plot(time_array, errpos, label='Error in position')
     fig5.plot(time_array, errvel, label='Error in velocity')
+    fig5.set_title(label)
     fig5.legend()
     plt.show()
     return
