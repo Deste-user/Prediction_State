@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 
 #To-do: take the file .csv from a folder
-def read_csv_in_folder():
-    with open("pitt_trajectories.csv", newline='') as csv_file:
+def read_csv_in_folder(dir):
+    with open(dir, newline='') as csv_file:
             csv_reader = csv.DictReader(csv_file)
             data = []
             for row in csv_reader:
@@ -21,7 +21,7 @@ def setUp():
     #Create covariance matrix Q (process noise) it represents the noise in the system (accelleration)
     Q = [[(9.81/8)**2,0,],[0,(9.81/8)**2]]
     #Create covariance matrix R (measurement noise) it represents the noise in the measurements
-    #the error in the position has a deviance of  1 meter
+    #the error in the position has a deviance of  0.2 meter
     R = [[0.2**2,0],[0,0.2**2]] #diminuire la deviazione standard
     return P0,Q,R,C
 
@@ -31,7 +31,7 @@ def module(vector):
         module_vector.append(np.sqrt(vector[i][0]**2+vector[i][1]**2))
     return module_vector
 
-#we need it where the time in the csv file is not continuos
+#we need it when time in the csv file is not continuos
 def calculate_matrix(t_in,t_fin):
     t_camp=t_fin-t_in
     t_camp = 0.1*t_camp #ogni decimo di secondo
@@ -69,13 +69,15 @@ def plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label,
     fig3.plot(time_array,pos_array[:,0],label='Position x')
     fig3.plot(time_array,realistic_pos_array[:,0],label='Real Position x')
     fig3.set_title(label)
+    fig3.legend()
+    plt.show()
 
 
     #Plot position y and his realistic position in time
-
-    fig3.plot(time_array,pos_array[:,1],label='Position y')
-    fig3.plot(time_array,realistic_pos_array[:,1],label='Real Position y')
-    fig3.legend()
+    figy= plt.subplot()
+    figy.plot(time_array,pos_array[:,1],label='Position y')
+    figy.plot(time_array,realistic_pos_array[:,1],label='Real Position y')
+    figy.legend()
     plt.show()
 
     #Plot velocity x and his realistic velocity in time
@@ -133,7 +135,7 @@ class State:
         self.velY=state[3]
 
 def main():
-    csv_data= read_csv_in_folder()
+    csv_data= read_csv_in_folder("pitt_trajectories.csv")
     state = State(float((csv_data[0]['x'])), float(csv_data[0]['y']))
     P0,Q,R,C = setUp()
     pos_array = []
@@ -195,4 +197,4 @@ def main():
            Pkminus1_kminus1=P0
 
 
-main()
+#main()
