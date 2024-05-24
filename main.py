@@ -148,7 +148,8 @@ def main():
     label=csv_data[0]['label']
     Pkminus1_kminus1=P0
     for i in range(0,len(csv_data)):
-        if(csv_data[i]['label']==label):
+        lbl = csv_data[i]['label']
+        if(lbl==label):
             if(i==0):
                 A,B=calculate_matrix(0,float(csv_data[i]['time']))
             else:
@@ -186,6 +187,9 @@ def main():
             vel_array.append([state.velX,state.velY])
         else:
            #Plot data of previous label and reset all variabiles
+           if (label=='AV'):
+               print('AV')
+               print(pos_array)
            plot_data(pos_array,vel_array,realistic_pos_array,realistic_vel_array,label,time_array)
            label=csv_data[i]['label']
            state = State(float((csv_data[i]['x'])), float(csv_data[i]['y']))
@@ -195,5 +199,10 @@ def main():
            realistic_pos_array=[]
            realistic_vel_array=[]
            Pkminus1_kminus1=P0
+           A, B = calculate_matrix(0, 1)
+
+    #Il server che gestisce la visualizzazione dei grafici non riesce a gestire tutte le richieste di plot in contemporanea
+    plot_data(pos_array, vel_array, realistic_pos_array, realistic_vel_array, label, time_array)
+
 
 
