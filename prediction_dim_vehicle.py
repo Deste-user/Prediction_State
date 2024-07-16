@@ -31,6 +31,9 @@ def calculate_length_width(data):
 
 
 def variant_set_up():
+   # Measurement matrix, in this matrix the first two rows are the position of the center of the vehicle
+   # and the last two rows are the dimension of the vehicle
+   #they are the part of the state that we can measure
    C =[[1,0,0,0,0,0],[0,1,0,0,0,0],[0,0,0,0,1,0],[0,0,0,0,0,1]]
 
    #covariance matrix with the covariance of dimension of the vehicle (0.1 m)
@@ -122,6 +125,9 @@ def main():
                 A=np.array(A)
                 B=np.array(B)
             center_pos = pbb.calculate_bounding_box_center(csv_data[i])
+            #TODO:PROVO
+
+            length,width=calculate_length_width(csv_data[i])
             #posBB_array.append(center_pos)
             #Predict the state
             #Calculate A_tilde
@@ -138,9 +144,17 @@ def main():
             #Calculate the Kalman gain
             K = np.dot(np.dot(Pk_kminus1,np.transpose(C)),np.linalg.inv(np.dot(np.dot(C,Pk_kminus1),np.transpose(C))+R))
             #In questo caso z è il vettore di misura
+            #Si ha due misure: la posizione del centro del veicolo e la dimensione del veicolo
+            #Quindi si hanno due errori
+            dim= [length,width]
             z= np.array(center_pos) + m.noisy_generator()
+            dim= np.array(dim)+m.noisy_generator()
+            measure= np.array([z[0],z[1],dim[0],dim[1]])
+            #Il commento sottostante non è corretto, poichè io devo avere nel mio vettore di misura
+            #la posizione del centro del veicolo e la dimensione del veicolo
             #metto a zero poichè non ho la misura della velocità e della dimensione del veicolo
-            z= np.array([z[0],z[1],0,0])
+            #z= np.array([z[0],z[1],0,0])
+            z=np.array(measure)
 
             #Calculate the new state
             xk_k = xk_kminus1 + np.dot(K,(z - np.dot(C,xk_kminus1)))
