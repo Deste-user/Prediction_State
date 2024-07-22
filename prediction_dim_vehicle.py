@@ -36,9 +36,12 @@ def variant_set_up():
    #they are the part of the state that we can measure
    C =[[1,0,0,0,0,0],[0,1,0,0,0,0],[0,0,0,0,1,0],[0,0,0,0,0,1]]
 
-   #covariance matrix with the covariance of dimension of the vehicle (0.1 m)
+   #covariance matrix with the covariance of stime dimension of the vehicle (0.1 m)
+   #più è grande il valore meno si è sicuri della stima
    P0 =[[1**2,0,0,0,0,0],[0,1**2,0,0,0,0],[0,0,30**2,0,0,0],[0,0,0,30**2,0,0],[0,0,0,0,0.1**2,0],[0,0,0,0,0,0.1**2]]
 
+   #covariance matrix Q (process noise) it represents the noise in the system (accelleration) i.e it represents
+   # the systematic or random uncertainties that are not explicitly modeled in the system.
    Q = [[(9.81/8)**2,0],[0,(9.81/8)**2]]
 
    # Create covariance matrix R (measurement noise) it represents the noise in the measurements
@@ -99,7 +102,7 @@ def main():
         os.mkdir("dimension_vehicles")
 
     csv_data = m.read_csv_in_folder("dataBB_definitivo_corto.csv")
-    print(csv_data[0])
+    #print(csv_data[0])
     pos0 = pbb.calculate_bounding_box_center(csv_data[0])
     state = m.State(float(pos0[0]), float(pos0[1]))
     length,width =calculate_length_width(csv_data[0])
@@ -130,10 +133,13 @@ def main():
             length,width=calculate_length_width(csv_data[i])
             #posBB_array.append(center_pos)
             #Predict the state
+
             #Calculate A_tilde
             A_tilde = np.block([[A, np.zeros((4, 2))], [np.zeros((2, 4)), np.eye(2)]])
 
             #Calculate Q_tilde
+            #in the previous version of the code the Q_tilde wasn't calculated
+            # because the process rumor in this case is moduled by the matrix B #TODO:(?)
             B_Q_B_t = np.dot(B,np.dot(Q,np.transpose(B)))
             W=np.eye(2,2)*(0.1)**2
             Q_tilde= np.block([[B_Q_B_t,np.zeros((4,2))],[np.zeros((2,4)), W]])
@@ -169,8 +175,8 @@ def main():
             gt_dimention_vehicle_array.append(calculate_length_width(csv_data[i]))
             pred_dimention_vehicle_array.append([dim[4],dim[5]])
         else:
-            print(pred_dimention_vehicle_array)
-            print(gt_dimention_vehicle_array)
+            #print(pred_dimention_vehicle_array)
+            #print(gt_dimention_vehicle_array)
             plot_dimention_vehicle(pred_dimention_vehicle_array,gt_dimention_vehicle_array,time_array,current_label)
             current_label = csv_data[i]['box_label']
             nextBB=calculate_length_width(csv_data[i])
@@ -182,15 +188,3 @@ def main():
             gt_dimention_vehicle_array = []
             time_array = []
             Pkminus1_kminus1 = P0
-
-
-
-
-
-
-
-
-
-
-
-
