@@ -119,10 +119,9 @@ def replace_label(data, label_list):
                 data[i]["box_label"] = label_list[j][1]
     return data
 
-
+#TODO: riguardare l'etichetta 4375
 def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground_truth ,current_label):
-
-    posBB_array = np.array(posBB_array)
+    #posBB_array = np.array(posBB_array)
     predicted_posBB_array = np.array(predicted_posBB_array)
     predicted_velBB_array = np.array(predicted_velBB_array)
     ground_truth_copy = []
@@ -140,6 +139,7 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
             tmp = 0
 
     velGT_array = []
+    #creo vettore velGT che ha componenti x e y
     for i in range(0, len(ground_truth_copy)):
         if ground_truth_copy[i]["label"] == current_label:
             velGT_array.append([float(ground_truth_copy[i]["vx"]), float(ground_truth_copy[i]["vy"])])
@@ -205,9 +205,19 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
         plt.close()
 
     #stampo le posizioni nel tempo e l'errore
+    #creo vettore posGT che ha componenti x e y
+    #TODO PROVIAMO
+    posGT_array = []
+    for i in range(0, len(ground_truth_copy)):
+        if ground_truth_copy[i]["label"] == current_label:
+            posGT_array.append([float(ground_truth_copy[i]["x"]), float(ground_truth_copy[i]["y"])])
 
-    if len(predicted_posBB_array) > len(posBB_array):
-        predicted_posBB_array = predicted_posBB_array[:len(posBB_array)]
+    posGT_array = np.array(posGT_array)
+
+
+
+    if len(predicted_posBB_array) > len(posGT_array):
+        predicted_posBB_array = predicted_posBB_array[:len(posGT_array)]
         time_array2 = []
         for i in range(len(predicted_posBB_array)):
             time_array2.append(i)
@@ -215,7 +225,7 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
         #stampo grafico coordinata x posizione nel tempo confronto tra predizione e realtà
         fig_position = plt.subplot()
         fig_position.plot(time_array2, predicted_posBB_array[:, 0], label="Predicted Position x")
-        fig_position.plot(time_array2, posBB_array[:, 0], label="Realistic Position x")
+        fig_position.plot(time_array2, posGT_array[:, 0], label="Realistic Position x")
         fig_position.set_title(current_label)
         plt.legend()
         plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Posizione Prevista-Reale-X.png'))
@@ -224,7 +234,7 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
         #stampo grafico coordinata y posizione nel tempo confronto tra predizione e realtà
         fig_position = plt.subplot()
         fig_position.plot(time_array2, predicted_posBB_array[:, 1], label="Predicted Position y")
-        fig_position.plot(time_array2, posBB_array[:, 1], label="Realistic Position y")
+        fig_position.plot(time_array2, posGT_array[:, 1], label="Realistic Position y")
         fig_position.set_title(current_label)
         plt.legend()
         plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Posizione Prevista-Reale-Y.png'))
@@ -232,7 +242,7 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
 
         #stampo traiettoria reale e predetta:
         fig_position = plt.subplot()
-        fig_position.plot(posBB_array[:, 0], posBB_array[:, 1], label="Realistic Position")
+        fig_position.plot(posGT_array[:, 0], posGT_array[:, 1], label="Realistic Position")
         fig_position.plot(predicted_posBB_array[:, 0], predicted_posBB_array[:, 1], label="Predicted Position")
         fig_position.set_title(current_label)
         plt.legend()
@@ -243,7 +253,7 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
         err_pos = []
 
         for i in range(len(predicted_posBB_array)):
-            err_pos.append(np.sqrt((predicted_posBB_array[i, 0] - posBB_array[i][0]) ** 2 + (predicted_posBB_array[i, 1] - posBB_array[i][1]) ** 2))
+            err_pos.append(np.sqrt((predicted_posBB_array[i, 0] - posGT_array[i][0]) ** 2 + (predicted_posBB_array[i, 1] - posGT_array[i][1]) ** 2))
         fig_err_pos = plt.subplot()
         fig_err_pos.plot(time_array2, err_pos, label="Error Position")
         fig_err_pos.set_title(current_label)
@@ -251,15 +261,15 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
         plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Errore Posizione.png'))
         plt.close()
     else:
-        posBB_array = posBB_array[:len(predicted_posBB_array)]
+        posGT_array = posGT_array[:len(predicted_posBB_array)]
         time_array2 = []
-        for i in range(len(posBB_array)):
+        for i in range(len(posGT_array)):
             time_array2.append(i)
 
         # stampo grafico coordinata posizione x nel tempo confronto tra predizione e realtà
         fig_position = plt.subplot()
         fig_position.plot(time_array2, predicted_posBB_array[:, 0], label="Predicted Position x")
-        fig_position.plot(time_array2, posBB_array[:, 0], label="Realistic Position x")
+        fig_position.plot(time_array2, posGT_array[:, 0], label="Realistic Position x")
         fig_position.set_title(current_label)
         plt.legend()
         plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Posizione Prevista-Reale-X.png'))
@@ -268,7 +278,7 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
         # stampo grafico coordinata posizione y nel tempo confronto tra predizione e realtà
         fig_position = plt.subplot()
         fig_position.plot(time_array2, predicted_posBB_array[:, 1], label="Predicted Position y")
-        fig_position.plot(time_array2, posBB_array[:, 1], label="Realistic Position y")
+        fig_position.plot(time_array2, posGT_array[:, 1], label="Realistic Position y")
         fig_position.set_title(current_label)
         plt.legend()
         plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Posizione Prevista-Reale-Y.png'))
@@ -276,7 +286,7 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
 
         #stampo traiettoria reale e predetta:
         fig_position=plt.subplot()
-        fig_position.plot(posBB_array[:,0],posBB_array[:,1],label="Realistic Position")
+        fig_position.plot(posGT_array[:,0],posGT_array[:,1],label="Realistic Position")
         fig_position.plot(predicted_posBB_array[:,0],predicted_posBB_array[:,1],label="Predicted Position")
         fig_position.set_title(current_label)
         plt.legend()
@@ -287,7 +297,7 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
         err_pos = []
 
         for i in range(len(predicted_posBB_array)):
-            err_pos.append(np.sqrt((predicted_posBB_array[i, 0] - posBB_array[i][0]) ** 2 + (predicted_posBB_array[i, 1] - posBB_array[i][1]) ** 2))
+            err_pos.append(np.sqrt((predicted_posBB_array[i, 0] - posGT_array[i][0]) ** 2 + (predicted_posBB_array[i, 1] - posGT_array[i][1]) ** 2))
         fig_err_pos = plt.subplot()
         fig_err_pos.plot(time_array2, err_pos, label="Error Position")
         fig_err_pos.set_title(current_label)

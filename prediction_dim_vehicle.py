@@ -141,7 +141,7 @@ def main():
             #in the previous version of the code the Q_tilde wasn't calculated
             # because the process rumor in this case is moduled by the matrix B #TODO:(?)
             B_Q_B_t = np.dot(B,np.dot(Q,np.transpose(B)))
-            W=np.eye(2,2)*(0.1)**2
+            W=np.eye(2,2)*(0.001)**2
             Q_tilde= np.block([[B_Q_B_t,np.zeros((4,2))],[np.zeros((2,4)), W]])
 
             xk_kminus1 = np.dot(A_tilde,state.get_state_dim())
