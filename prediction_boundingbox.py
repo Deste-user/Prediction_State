@@ -16,7 +16,7 @@ def setUp():
     P0 = [[1**2,0,0,0],[0,1**2,0,0],[0,0,30**2,0],[0,0,0,30**2]]
     #Create covariance matrix Q (process noise) it represents the noise in the system (accelleration)
     #TODO: aumentare varianza distrubo processo Q
-    Q = [[(9.81/9.2)**2,0,],[0,(9.81/9.2)**2]]
+    Q = [[(9.81/9.2)**2,0],[0,(9.81/9.2)**2]]
     #Create covariance matrix R (measurement noise) it represents the noise in the measurements
     #the error in the position has a deviance of  0.2 meter
     R = [[0.2**2,0],[0,0.2**2]] #diminuire la deviazione standard
@@ -119,9 +119,8 @@ def replace_label(data, label_list):
                 data[i]["box_label"] = label_list[j][1]
     return data
 
-#TODO: riguardare l'etichetta 4375
-def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground_truth ,current_label):
-    #posBB_array = np.array(posBB_array)
+
+def plot_dataBB(predicted_posBB_array, predicted_velBB_array,ground_truth ,current_label):
     predicted_posBB_array = np.array(predicted_posBB_array)
     predicted_velBB_array = np.array(predicted_velBB_array)
     ground_truth_copy = []
@@ -206,7 +205,7 @@ def plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground
 
     #stampo le posizioni nel tempo e l'errore
     #creo vettore posGT che ha componenti x e y
-    #TODO PROVIAMO
+
     posGT_array = []
     for i in range(0, len(ground_truth_copy)):
         if ground_truth_copy[i]["label"] == current_label:
@@ -342,7 +341,7 @@ def draw_all_trajectories(ground_truth, data):
        if data[i]["box_label"] != BB_label:
            BB_array = np.array(BB_array)
            fig_copy.plot(BB_array[0, 0], BB_array[0, 1], marker="x")
-           fig_copy.plot(BB_array[:, 0], BB_array[:, 1],color=colors[color_idx],linestyle="--", label=GT_label, )
+           fig_copy.plot(BB_array[:, 0], BB_array[:, 1],color=colors[color_idx],linestyle="--", label=BB_label, )
            BB_label = data[i]["box_label"]
            color_idx= color_idx+1 % len(colors)
            BB_array = []
@@ -356,12 +355,13 @@ def draw_all_trajectories(ground_truth, data):
            print("Ground truth copy: ", ground_truth_copy[i]["label"])
            GT_copy_array =np.array(GT_copy_array)
            fig_copy.plot(GT_copy_array[0,0],GT_copy_array[0,1],marker="X")
-           fig_copy.plot(GT_copy_array[:, 0], GT_copy_array[:, 1],color=colors[color_idx], label=GT_label, )
+           fig_copy.plot(GT_copy_array[:, 0], GT_copy_array[:, 1],color=colors[color_idx], label=GT_copy_label, )
            GT_copy_label= ground_truth_copy[i]["label"]
            color_idx = color_idx + 1 % len(colors)
            GT_copy_array=[]
        else:
            GT_copy_array.append([float(ground_truth_copy[i]["x"]),float(ground_truth_copy[i]["y"])])
+
    plt.legend()
    plt.savefig(os.path.join("plots_boundingbox/","BB_GT_shiftate"))
    plt.close()
@@ -499,7 +499,7 @@ def main():
             if (current_label == "4375"):
                 print("Realistic position: ", posBB_array)
             #    print("Predicted position: ", predicted_posBB_array)
-            plot_dataBB(posBB_array, predicted_posBB_array, predicted_velBB_array,ground_truth,current_label)
+            plot_dataBB( predicted_posBB_array, predicted_velBB_array,ground_truth,current_label)
             current_label = ready_data[i]["box_label"]
             nextBB= calculate_bounding_box_center(ready_data[i])
             state = m.State(nextBB[0], nextBB[1])
