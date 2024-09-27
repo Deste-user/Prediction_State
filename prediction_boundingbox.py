@@ -4,8 +4,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import csv
 import pandas as pd
-import ground_truth_trajectories as m
+import prediction_ground_truth as m
 import prediction_dim_vehicle as pdv
+
+def plot_all_trajectoriesBB(vect):
+    fig = plt.subplot()
+    for i in range(0, len(vect)):
+            vect_BB= np.array(vect[i][1])
+            fig.plot(vect_BB[:,0],vect_BB[:,1],label=vect[i][0])
+    plt.legend()
+    plt.savefig(os.path.join("plots_boundingbox/","All_BB"))
 
 #Ne faccio uno nuovo senza usare quello dello script prima così posso modificare parametri singolarmente
 def setUp():
@@ -13,26 +21,54 @@ def setUp():
     #A,B = calculate_matrix(0,1)
     C= [[1,0,0,0],[0,1,0,0]]
     #Create covariance matrix P0, 30m/s is the deviance standard of velocity
-    P0 = [[1**2,0,0,0],[0,1**2,0,0],[0,0,30**2,0],[0,0,0,30**2]]
+    P0 = [[2.5**2,0,0,0],[0,2.5**2,0,0],[0,0,30**2,0],[0,0,0,30**2]]
     #Create covariance matrix Q (process noise) it represents the noise in the system (accelleration)
-    #TODO: aumentare varianza distrubo processo Q
-    Q = [[(9.81/9.2)**2,0],[0,(9.81/9.2)**2]]
+    Q = [[(9.81/8)**2,0],[0,(9.81/8)**2]]
     #Create covariance matrix R (measurement noise) it represents the noise in the measurements
     #the error in the position has a deviance of  0.2 meter
     R = [[0.2**2,0],[0,0.2**2]] #diminuire la deviazione standard
     return P0,Q,R,C
 
 def order_csv():
-    data= pd.read_csv("data_ordinato_corretto.csv")
+    data= pd.read_csv("dataBB.csv")
     data= data.sort_values(by=['box_label','time'])
-    filter_condition = (data['time'] <= 50) | (data['time'] > 69)
+    filter_condition = (data['time'] < 50)
     data = data[filter_condition]
-    data_ordinato_corretto_corto = data.to_csv('dataBB_definitivo_corto.csv',index=False)
+    data_ordinato_corretto_corto = data.to_csv('dataBB_corto.csv',index=False)
 #ho 8 punti che passo alla funzione
 def calculate_bounding_box_center(points):
     x = float(points["P1x"]) + float(points["P2x"]) + float(points["P3x"]) + float(points["P4x"]) + float(points["P5x"]) + float(points["P6x"]) + float(points["P7x"]) + float(points["P8x"])
     y = float(points["P1y"]) + float(points["P2y"]) + float(points["P3y"]) + float(points["P4y"]) + float(points["P5y"]) + float(points["P6y"]) + float(points["P7y"]) + float(points["P8y"])
     return [x/8, y/8]
+
+#Ho aggiunto una funzione per calcolare il guadagno prospettico sapendo il vero centro dei veicoli, lo si fa solo per
+#la prima posizione
+def calculate_gains_for_center(first_ready_data,first_gt_data,label_list):
+    vectgain = []
+    vectpos = []
+    first_ready_data=replace_label(first_ready_data, label_list)
+    #print("First ready data: ", first_ready_data)
+    #print("First GT data: ", first_gt_data)
+    for i in range(0,len(first_ready_data)):
+        pos= calculate_bounding_box_center(first_ready_data[i])
+        vectpos.append([first_ready_data[i]["box_label"],pos[0],pos[1]])
+    #print("Vectpos: ", vectpos)
+    for i in range(0,len(first_gt_data)):
+        for j in range(0,len(vectpos)):
+            if first_gt_data[i]["label"] == vectpos[j][0]:
+                vectgain.append([first_gt_data[i]["label"],float(first_gt_data[i]["x"])/float(vectpos[j][1]),float(first_gt_data[i]["y"])/float(vectpos[j][2])])
+
+    return vectgain
+
+def prod_gain(vectgain,pos,current_label):
+    for i in range(0,len(vectgain)):
+        if vectgain[i][0] == current_label:
+            x = pos[0]*vectgain[i][1]
+            y = pos[1]*vectgain[i][2]
+            return [x,y]
+
+
+#oltre a buttare fuuri la lista di label, butto fuori anche i primi istanti di ogni veicolo sia GT che BB
 def recognize_label(data, ground_truth):
     label_list = []
     first_data_vehicle = []
@@ -49,7 +85,7 @@ def recognize_label(data, ground_truth):
     label = ground_truth[0]["label"]
     for i in range(len(ground_truth)):
         if ground_truth[i]["label"] == label:
-            if tmp >= 20:
+            if tmp > 18:
                 ground_truth_copy.append(ground_truth[i])
             else:
                 tmp += 1
@@ -108,202 +144,104 @@ def recognize_label(data, ground_truth):
         print("Label list: ", label_list)
         print("Next iteration")
 
-    return label_list
+    return label_list, first_data_vehicle, first_gt_vehicle
 
 
 def replace_label(data, label_list):
     for i in range(0,len(data)):
         for j in range(0,len(label_list)):
-            if data[i]["box_label"] == label_list[j][0]:
+            etichetta1 = data[i]["box_label"]
+            etichetta2 = label_list[j][0]
+            if etichetta1 == etichetta2:
                 # sostituisco la BB_label con le label del pitt_trajectories
                 data[i]["box_label"] = label_list[j][1]
     return data
 
-
-def plot_dataBB(predicted_posBB_array, predicted_velBB_array,ground_truth ,current_label):
-    predicted_posBB_array = np.array(predicted_posBB_array)
-    predicted_velBB_array = np.array(predicted_velBB_array)
-    ground_truth_copy = []
-    tmp= 0
+def prepare_ground_truth(ground_truth, current_label, skip=20):
+    filtered_gt = []
+    tmp = 0
     label = ground_truth[0]["label"]
 
-    for i in range(len(ground_truth)):
-        if ground_truth[i]["label"] == label:
-            if tmp >= 19:
-                ground_truth_copy.append(ground_truth[i])
+    for item in ground_truth:
+        if item["label"] == label:
+            if tmp >= skip:
+                filtered_gt.append(item)
             else:
                 tmp += 1
         else:
-            label = ground_truth[i]["label"]
+            label = item["label"]
             tmp = 0
+    return np.array([item for item in filtered_gt if item["label"] == current_label])
 
-    velGT_array = []
-    #creo vettore velGT che ha componenti x e y
-    for i in range(0, len(ground_truth_copy)):
-        if ground_truth_copy[i]["label"] == current_label:
-            velGT_array.append([float(ground_truth_copy[i]["vx"]), float(ground_truth_copy[i]["vy"])])
+def plot_dataBB(predicted_posBB_array, predicted_velBB_array, ground_truth, current_label):
+    predicted_posBB_array = np.array(predicted_posBB_array)
+    predicted_velBB_array = np.array(predicted_velBB_array)
+    ground_truth_copy = prepare_ground_truth(ground_truth, current_label)
 
-    if not os.path.exists("plots_boundingbox/" + current_label):
-        os.mkdir("plots_boundingbox/" + current_label)
+    if not os.path.exists(f"plots_boundingbox/{current_label}"):
+        os.makedirs(f"plots_boundingbox/{current_label}", exist_ok=True)
 
+    #Prendo la velocità dal ground truth
+    velGT_array = np.array([[float(entry["vx"]), float(entry["vy"])] for entry in ground_truth_copy])
 
-    velGT_array = np.array(velGT_array)
-    if len(predicted_velBB_array) > len(velGT_array):
-        predicted_velBB_array = predicted_velBB_array[:len(velGT_array)]
-        time_array1=[]
-        for i in range(len(predicted_velBB_array)):
-            time_array1.append(i)
+    #prendo il minimo delle lunghezze
+    min_length = min(len(predicted_velBB_array), len(velGT_array))
+    predicted_velBB_array = predicted_velBB_array[:min_length]
+    velGT_array = velGT_array[:min_length]
+    #la funzione arange permette di creare un array di valori da 0 a min_length
+    time_array = np.arange(min_length)
 
-        #stampo grafico velocità nel tempo confronto tra predizione e realtà
-        fig_velocity = plt.subplot()
-        fig_velocity.plot(time_array1, predicted_velBB_array[:, 0], label="Predicted Velocity x")
-        fig_velocity.plot(time_array1, predicted_velBB_array[:, 1], label="Predicted Velocity y")
-        fig_velocity.plot(time_array1, velGT_array[:, 0], label="Realistic Velocity x")
-        fig_velocity.plot(time_array1, velGT_array[:, 1], label="Realistic Velocity y")
-        fig_velocity.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Velocità Prevista.png'))
-        plt.close()
+    #Confronto velocità per x e y
+    m.save_plot([time_array],
+              [predicted_velBB_array[:, 0], predicted_velBB_array[:, 1], velGT_array[:, 0], velGT_array[:, 1]],
+              current_label,
+              ["Predicted Velocity x", "Predicted Velocity y", "Real Velocity x", "Real Velocity y"],
+              f"plots_boundingbox/{current_label}/Velocità Prevista.png")
 
-        #stampo grafico errore velocità nel tempo
-        err_vel=[]
-        for i in range(len(predicted_velBB_array)):
-            err_vel.append(np.sqrt((predicted_velBB_array[i,0]-velGT_array[i][0])**2+(predicted_velBB_array[i,1]-velGT_array[i][1])**2))
-        fig_err_vel = plt.subplot()
-        fig_err_vel.plot(time_array1, err_vel, label="Error Velocity")
-        fig_err_vel.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Errore Velocità.png'))
-        plt.close()
-    else:
-        velGT_array = velGT_array[:len(predicted_velBB_array)]
-        time_array1 = []
-        for i in range(len(velGT_array)):
-            time_array1.append(i)
+    #Confronto errore velocità
+    err_vel = m.calculate_error(predicted_velBB_array, velGT_array)
 
-        # stampo grafico velocità nel tempo confronto tra predizione e realtà
-        fig_velocity = plt.subplot()
-        fig_velocity.plot(time_array1, predicted_velBB_array[:, 0], label="Predicted Velocity x")
-        fig_velocity.plot(time_array1, predicted_velBB_array[:, 1], label="Predicted Velocity y")
-        fig_velocity.plot(time_array1, velGT_array[:, 0], label="Realistic Velocity x")
-        fig_velocity.plot(time_array1, velGT_array[:, 1], label="Realistic Velocity y")
-        fig_velocity.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Velocità Prevista.png'))
-        plt.close()
+    m.save_plot([time_array], [err_vel], current_label, ["Error in Velocity"],
+              f"plots_boundingbox/{current_label}/Errore Velocità.png")
 
-        # stampo grafico errore velocità nel tempo
-        err_vel = []
-        for i in range(len(predicted_velBB_array)):
-            err_vel.append(np.sqrt((predicted_velBB_array[i, 0] - velGT_array[i][0]) ** 2 + (predicted_velBB_array[i, 1] - velGT_array[i][1]) ** 2))
-        fig_err_vel = plt.subplot()
-        fig_err_vel.plot(time_array1, err_vel, label="Error Velocity")
-        fig_err_vel.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Errore Velocità.png'))
-        plt.close()
-
-    #stampo le posizioni nel tempo e l'errore
-    #creo vettore posGT che ha componenti x e y
-
-    posGT_array = []
-    for i in range(0, len(ground_truth_copy)):
-        if ground_truth_copy[i]["label"] == current_label:
-            posGT_array.append([float(ground_truth_copy[i]["x"]), float(ground_truth_copy[i]["y"])])
-
-    posGT_array = np.array(posGT_array)
+    #prendo pos x e y dal ground truth
+    posGT_array = np.array([[float(entry["x"]), float(entry["y"])] for entry in ground_truth_copy])
 
 
+    min_length = min(len(predicted_posBB_array), len(posGT_array))
+    predicted_posBB_array = predicted_posBB_array[:min_length]
+    posGT_array = posGT_array[:min_length]
 
-    if len(predicted_posBB_array) > len(posGT_array):
-        predicted_posBB_array = predicted_posBB_array[:len(posGT_array)]
-        time_array2 = []
-        for i in range(len(predicted_posBB_array)):
-            time_array2.append(i)
+    time_array = np.arange(min_length)
 
-        #stampo grafico coordinata x posizione nel tempo confronto tra predizione e realtà
-        fig_position = plt.subplot()
-        fig_position.plot(time_array2, predicted_posBB_array[:, 0], label="Predicted Position x")
-        fig_position.plot(time_array2, posGT_array[:, 0], label="Realistic Position x")
-        fig_position.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Posizione Prevista-Reale-X.png'))
-        plt.close()
+    #Confronto posizione per x
+    m.save_plot([time_array],
+              [predicted_posBB_array[:, 0], posGT_array[:, 0]],
+              current_label,
+              ["Predicted Position x", "Real Position x"],
+              f"plots_boundingbox/{current_label}/Posizione Prevista-Reale-X.png")
 
-        #stampo grafico coordinata y posizione nel tempo confronto tra predizione e realtà
-        fig_position = plt.subplot()
-        fig_position.plot(time_array2, predicted_posBB_array[:, 1], label="Predicted Position y")
-        fig_position.plot(time_array2, posGT_array[:, 1], label="Realistic Position y")
-        fig_position.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Posizione Prevista-Reale-Y.png'))
-        plt.close()
+    #Confronto posizione per y
+    m.save_plot([time_array],
+              [predicted_posBB_array[:, 1], posGT_array[:, 1]],
+              current_label,
+              ["Predicted Position y", "Real Position y"],
+              f"plots_boundingbox/{current_label}/Posizione Prevista-Reale-Y.png")
 
-        #stampo traiettoria reale e predetta:
-        fig_position = plt.subplot()
-        fig_position.plot(posGT_array[:, 0], posGT_array[:, 1], label="Realistic Position")
-        fig_position.plot(predicted_posBB_array[:, 0], predicted_posBB_array[:, 1], label="Predicted Position")
-        fig_position.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Traiettoria.png'))
-        plt.close()
+    #Traiettoria Reale e Predetta
+    m.save_plot([posGT_array[:, 0],predicted_posBB_array[:,0]],
+              [posGT_array[:, 1], predicted_posBB_array[:, 1]],
+              current_label,
+              ["Real Trajectory", "Predicted Trajectory"],
+              f"plots_boundingbox/{current_label}/Traiettoria.png")
 
-        #stampo grafico errore posizione nel tempo
-        err_pos = []
+    #Confronto errore posizione
+    err_pos = m.calculate_error(predicted_posBB_array, posGT_array)
+    m.save_plot([time_array], [err_pos], current_label, ["Error in position"],
+              f"plots_boundingbox/{current_label}/Errore Posizione.png")
 
-        for i in range(len(predicted_posBB_array)):
-            err_pos.append(np.sqrt((predicted_posBB_array[i, 0] - posGT_array[i][0]) ** 2 + (predicted_posBB_array[i, 1] - posGT_array[i][1]) ** 2))
-        fig_err_pos = plt.subplot()
-        fig_err_pos.plot(time_array2, err_pos, label="Error Position")
-        fig_err_pos.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Errore Posizione.png'))
-        plt.close()
-    else:
-        posGT_array = posGT_array[:len(predicted_posBB_array)]
-        time_array2 = []
-        for i in range(len(posGT_array)):
-            time_array2.append(i)
-
-        # stampo grafico coordinata posizione x nel tempo confronto tra predizione e realtà
-        fig_position = plt.subplot()
-        fig_position.plot(time_array2, predicted_posBB_array[:, 0], label="Predicted Position x")
-        fig_position.plot(time_array2, posGT_array[:, 0], label="Realistic Position x")
-        fig_position.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Posizione Prevista-Reale-X.png'))
-        plt.close()
-
-        # stampo grafico coordinata posizione y nel tempo confronto tra predizione e realtà
-        fig_position = plt.subplot()
-        fig_position.plot(time_array2, predicted_posBB_array[:, 1], label="Predicted Position y")
-        fig_position.plot(time_array2, posGT_array[:, 1], label="Realistic Position y")
-        fig_position.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Posizione Prevista-Reale-Y.png'))
-        plt.close()
-
-        #stampo traiettoria reale e predetta:
-        fig_position=plt.subplot()
-        fig_position.plot(posGT_array[:,0],posGT_array[:,1],label="Realistic Position")
-        fig_position.plot(predicted_posBB_array[:,0],predicted_posBB_array[:,1],label="Predicted Position")
-        fig_position.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Traiettoria.png'))
-        plt.close()
-
-        # stampo grafico errore posizione nel tempo
-        err_pos = []
-
-        for i in range(len(predicted_posBB_array)):
-            err_pos.append(np.sqrt((predicted_posBB_array[i, 0] - posGT_array[i][0]) ** 2 + (predicted_posBB_array[i, 1] - posGT_array[i][1]) ** 2))
-        fig_err_pos = plt.subplot()
-        fig_err_pos.plot(time_array2, err_pos, label="Error Position")
-        fig_err_pos.set_title(current_label)
-        plt.legend()
-        plt.savefig(os.path.join("plots_boundingbox/" + current_label, 'Errore Posizione.png'))
-        plt.close()
-
+    m.save_plot([time_array], [err_vel, err_pos], current_label, ["Error in velocity", "Error in position"],
+              f"plots_boundingbox/{current_label}/Errore_Velocità_Posizione.png")
 
 def draw_all_trajectories(ground_truth, data):
    GT_label = ground_truth[0]["label"]
@@ -328,7 +266,7 @@ def draw_all_trajectories(ground_truth, data):
    label=ground_truth[0]["label"]
    for i in range(len(ground_truth)):
        if ground_truth[i]["label"] == label:
-           if tmp >= 20:
+           if tmp > 20:
                ground_truth_copy.append(ground_truth[i])
            else:
                tmp+=1
@@ -352,7 +290,6 @@ def draw_all_trajectories(ground_truth, data):
 
    for i in range(len(ground_truth_copy)):
        if(ground_truth_copy[i]["label"] != GT_copy_label):
-           print("Ground truth copy: ", ground_truth_copy[i]["label"])
            GT_copy_array =np.array(GT_copy_array)
            fig_copy.plot(GT_copy_array[0,0],GT_copy_array[0,1],marker="X")
            fig_copy.plot(GT_copy_array[:, 0], GT_copy_array[:, 1],color=colors[color_idx], label=GT_copy_label, )
@@ -454,11 +391,15 @@ def main():
     #Preparazione matrici
     P0,Q,R,C = setUp()
     predicted_posBB_array = []
+    array_BB = []
     predicted_velBB_array = []
     posBB_array = []
     time_array = []
     posBB_array.append([state.posX, state.posY])
-    label_list=recognize_label(data, ground_truth)
+    #butto fuori la lista di label e il primo istante di ogni veicolo
+    label_list,First_BB_place,First_GT_place=recognize_label(data, ground_truth)
+    #calcolo i guadagni sull'istante iniziale di ogni veicolo.
+    gains=calculate_gains_for_center(First_BB_place, First_GT_place,label_list)
     ready_data = replace_label(data, label_list)
     current_label = ready_data[0]["box_label"]
     #print("Ready data: ", ready_data)
@@ -473,7 +414,10 @@ def main():
                 time_array.append(float(ready_data[i]["time"]) - 20)
 
             center_pos = calculate_bounding_box_center(ready_data[i])
-            posBB_array.append(center_pos)
+            #faccio il prodotto dei guadagni per le posizioni
+            #center_pos = prod_gain(gains, center_pos, current_label)
+            #posBB_array.append(center_pos)
+
 
             #Predizione
             xk_kminus1 = np.dot(A, state.get_state())
@@ -481,7 +425,7 @@ def main():
 
             #Correzione
             K = np.dot(np.dot(Pk_kminus1, np.transpose(C)), np.linalg.inv(np.dot(np.dot(C, Pk_kminus1), np.transpose(C)) + R))
-            z = np.array(center_pos) + m.noisy_generator()
+            z = np.array(center_pos) + m.noisy_generator(0.2)
 
 
             #Calcolo del nuovo Stato
@@ -496,10 +440,8 @@ def main():
             predicted_posBB_array.append([state.posX, state.posY])
             predicted_velBB_array.append([state.velX, state.velY])
         else:
-            if (current_label == "4375"):
-                print("Realistic position: ", posBB_array)
-            #    print("Predicted position: ", predicted_posBB_array)
             plot_dataBB( predicted_posBB_array, predicted_velBB_array,ground_truth,current_label)
+            array_BB.append([current_label, predicted_posBB_array])
             current_label = ready_data[i]["box_label"]
             nextBB= calculate_bounding_box_center(ready_data[i])
             state = m.State(nextBB[0], nextBB[1])
@@ -510,7 +452,7 @@ def main():
             time_array.append(0)
             Pkminus1_kminus1 = P0
 
-
+    plot_all_trajectoriesBB(array_BB)
 
 
 

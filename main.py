@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import prediction_dim_vehicle as pdv
 import prediction_boundingbox as pbb
-import ground_truth_trajectories as m
+import prediction_ground_truth as m
 
 exit = False
 while not exit:
